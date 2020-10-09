@@ -8,13 +8,17 @@
 
 FROM gitea/gitea:1
 
-LABEL maintainer="Vegard IT GmbH (vegardit.com)"
-
-LABEL org.label-schema.vcs-url="https://github.com/vegardit/docker-gitea-ext.git"
+LABEL \
+  maintainer="Vegard IT GmbH (vegardit.com)" \
+  org.label-schema.vcs-url="https://github.com/vegardit/docker-gitea-ext.git"
 
 RUN \
   set -x && \
+  ############################################################
+  echo "Installing latest OS updates..." && \
   apk -U upgrade && \
+  ############################################################
+  echo "Installing asciidoctor..." && \
   apk --no-cache add asciidoctor && \
   echo -e '\n\
 [markup.asciidoc]\n\
