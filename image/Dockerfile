@@ -10,7 +10,10 @@ FROM gitea/gitea:1
 
 LABEL \
   maintainer="Vegard IT GmbH (vegardit.com)" \
-  org.label-schema.vcs-url="https://github.com/vegardit/docker-gitea-ext.git"
+  org.label-schema.schema-version="1.0" \
+  org.label-schema.build-date=$BUILD_DATE \
+  org.label-schema.vcs-ref=$GIT_COMMIT_HASH \
+  org.label-schema.vcs-url=$GIT_REPO_URL
 
 RUN \
   set -x && \

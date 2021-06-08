@@ -1,5 +1,6 @@
 # vegardit/gitea-ext <a href="https://github.com/vegardit/docker-gitea-ext/" title="GitHub Repo"><img height="30" src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/github.svg?sanitize=true"></a>
 
+[![Build Status](https://github.com/vegardit/docker-gitea-ext/workflows/Build/badge.svg "GitHub Actions")](https://github.com/vegardit/docker-gitea-ext/actions?query=workflow%3ABuild)
 [![License](https://img.shields.io/github/license/vegardit/docker-gitea-ext.svg?label=license)](#license)
 [![Docker Pulls](https://img.shields.io/docker/pulls/vegardit/gitea-ext.svg)](https://hub.docker.com/r/vegardit/gitea-ext)
 [![Docker Stars](https://img.shields.io/docker/stars/vegardit/gitea-ext.svg)](https://hub.docker.com/r/vegardit/gitea-ext)
