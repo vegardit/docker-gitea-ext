@@ -16,9 +16,11 @@ on:
     - '**'
     paths-ignore:
     - '**/*.md'
+    - '.github/*.yml'
   schedule:
     # https://docs.github.com/en/free-pro-team@latest/actions/reference/events-that-trigger-workflows
     - cron: '0 17 * * 3'
+  pull_request:
   workflow_dispatch:
     # https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/
 
@@ -27,9 +29,14 @@ env:
   DOCKER_IMAGE_TAG: latest
   TRIVY_CACHE_DIR: ~/.trivy/cache
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - name: Git Checkout
       uses: actions/checkout@v3 #https://github.com/actions/checkout
@@ -49,7 +56,6 @@ jobs:
       run: sudo apt-get install -o Acquire::Retries=3 --no-install-recommends -y dos2unix
 
     - name: Build ${{ env.DOCKER_IMAGE_REPO }}:${{ env.DOCKER_IMAGE_TAG }}
-      shell: bash
       env:
         DOCKER_REGISTRY: docker.io
         DOCKER_REGISTRY_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
@@ -61,3 +67,12 @@ jobs:
         fi
         echo "$DOCKER_REGISTRY_TOKEN" | docker login -u="$DOCKER_REGISTRY_USERNAME" "$DOCKER_REGISTRY" --password-stdin
         bash build-image.sh
+
+    - name: Publish Docker image to GH registry
+      run: |
+        set -eux
+
+        echo "${{ github.token }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
+
+        docker image tag $DOCKER_IMAGE_REPO ghcr.io/$DOCKER_IMAGE_REPO
+        docker push ghcr.io/$DOCKER_IMAGE_REPO
