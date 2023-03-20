@@ -71,7 +71,7 @@ jobs:
         bash build-image.sh
 
     - name: Publish Docker image to GH registry
-      if: env.ACT != 'true' # https://github.com/nektos/act#skipping-steps
+      if: ${{ github.ref_name == 'main' && !env.ACT }} # https://github.com/nektos/act#skipping-steps
       run: |
         set -eux
 
@@ -79,3 +79,24 @@ jobs:
 
         docker image tag $DOCKER_IMAGE_REPO ghcr.io/$DOCKER_IMAGE_REPO
         docker push ghcr.io/$DOCKER_IMAGE_REPO
+
+        gitea_version=$(docker run --rm $DOCKER_IMAGE_REPO /app/gitea/gitea --version | LC_ALL=en_US.utf8 grep -oP 'Gitea version \K\d+\.\d+\.\d+' || true)
+        echo gitea_version=$gitea_version
+        docker image tag $DOCKER_IMAGE_REPO ghcr.io/$DOCKER_IMAGE_REPO:${gitea_version%%.*}.x #1.x
+        docker push ghcr.io/$DOCKER_IMAGE_REPO:${gitea_version%%.*}.x #1.x
+
+    - name: Delete untagged images
+      uses: actions/github-script@v6
+      if: ${{ github.ref_name == 'main' && !env.ACT }} # https://github.com/nektos/act#skipping-steps
+      with:
+        github-token: ${{ secrets.GHA_DELETE_PACKAGES }}
+        script: |
+          const imageName = /[^/]*$/.exec(process.env.DOCKER_IMAGE_REPO)[0]
+          const basePath = `/orgs/${{ github.repository_owner }}/packages/container/${imageName}/versions`
+          for (version of (await github.request(`GET ${basePath}`, { per_page: 100 })).data) {
+            if (version.metadata.container.tags.length == 0) {
+              console.log(`deleting ${version.name}...`)
+              const delResponse = await github.request(`DELETE ${basePath}/${version.id}`)
+              console.log(`status: ${delResponse.status}`)
+            }
+          }
