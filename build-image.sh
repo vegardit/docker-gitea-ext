@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 #
-# Copyright 2020-2021 by Vegard IT GmbH, Germany, https://vegardit.com
+# SPDX-FileCopyrightText: © Vegard IT GmbH (https://vegardit.com)
+# SPDX-FileContributor: Sebastian Thomschke
 # SPDX-License-Identifier: Apache-2.0
-#
-# Author: Sebastian Thomschke, Vegard IT GmbH
-#
-# https://github.com/vegardit/docker-gitea-ext
+# SPDX-ArtifactOfProjectHomePage: https://github.com/vegardit/docker-gitea-ext
 #
 
 shared_lib="$(dirname $0)/.shared"
@@ -58,20 +56,22 @@ docker image tag $image_name $image_repo:${gitea_version%%.*}.x #1.x
 #################################################
 # perform security audit
 #################################################
-bash "$shared_lib/cmd/audit-image.sh" $image_name
+if [[ "${DOCKER_AUDIT_IMAGE:-1}" == 1 ]]; then
+   bash "$shared_lib/cmd/audit-image.sh" $image_name
+fi
 
 
 #################################################
 # push image with tags to remote docker image registry
 #################################################
 if [[ "${DOCKER_PUSH:-0}" == "1" ]]; then
-  docker image tag $image_name $docker_registry/$image_name
-  #docker image tag $image_name $docker_registry/$image_repo:${gitea_version}      #1.12.4
-  #docker image tag $image_name $docker_registry/$image_repo:${gitea_version%.*}.x #1.12.x
-  docker image tag $image_name $docker_registry/$image_repo:${gitea_version%%.*}.x #1.x
+   docker image tag $image_name $docker_registry/$image_name
+   #docker image tag $image_name $docker_registry/$image_repo:${gitea_version}      #1.12.4
+   #docker image tag $image_name $docker_registry/$image_repo:${gitea_version%.*}.x #1.12.x
+   docker image tag $image_name $docker_registry/$image_repo:${gitea_version%%.*}.x #1.x
 
-  docker push $docker_registry/$image_name
-  #docker push $docker_registry/$image_repo:${gitea_version}       #1.12.4
-  #docker push $docker_registry/$image_repo:${gitea_version%.*}.x  #1.12.x
-  docker push $docker_registry/$image_repo:${gitea_version%%.*}.x #1.x
+   docker push $docker_registry/$image_name
+   #docker push $docker_registry/$image_repo:${gitea_version}       #1.12.4
+   #docker push $docker_registry/$image_repo:${gitea_version%.*}.x  #1.12.x
+   docker push $docker_registry/$image_repo:${gitea_version%%.*}.x #1.x
 fi
