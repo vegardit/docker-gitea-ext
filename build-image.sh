@@ -4,17 +4,20 @@
 # SPDX-FileContributor: Sebastian Thomschke
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-ArtifactOfProjectHomePage: https://github.com/vegardit/docker-gitea-ext
-#
 
-shared_lib="$(dirname $0)/.shared"
-[ -e "$shared_lib" ] || curl -sSf https://raw.githubusercontent.com/vegardit/docker-shared/v1/download.sh?_=$(date +%s) | bash -s v1 "$shared_lib" || exit 1
+function curl() {
+   command curl -sSfL --connect-timeout 10 --max-time 30 --retry 3 --retry-all-errors "$@"
+}
+
+shared_lib="$(dirname "${BASH_SOURCE[0]}")/.shared"
+[[ -e $shared_lib ]] || curl "https://raw.githubusercontent.com/vegardit/docker-shared/v1/download.sh?_=$(date +%s)" | bash -s v1 "$shared_lib" || exit 1
+# shellcheck disable=SC1091  # Not following: $shared_lib/lib/build-image-init.sh was not specified as input
 source "$shared_lib/lib/build-image-init.sh"
 
 
 #################################################
-# specify target docker registry/repo
+# specify target image repo/tag
 #################################################
-docker_registry=${DOCKER_REGISTRY:-docker.io}
 image_repo=${DOCKER_IMAGE_REPO:-vegardit/gitea-ext}
 image_name=$image_repo:${DOCKER_IMAGE_TAG:-latest}
 
@@ -22,56 +25,101 @@ image_name=$image_repo:${DOCKER_IMAGE_TAG:-latest}
 #################################################
 # build the image
 #################################################
-echo "Building docker image [$image_name]..."
+log INFO "Building docker image [$image_name]..."
 if [[ $OSTYPE == "cygwin" || $OSTYPE == "msys" ]]; then
    project_root=$(cygpath -w "$project_root")
 fi
 
-DOCKER_BUILDKIT=1 docker build "$project_root" \
+# https://github.com/docker/buildx/#building-multi-platform-images
+set -x
+
+docker --version
+export DOCKER_BUILDKIT=1
+export DOCKER_CLI_EXPERIMENTAL=1 # prevents "docker: 'buildx' is not a docker command."
+
+# Register QEMU emulators for all architectures so Docker can run and build multi-arch images
+docker run --privileged --rm ghcr.io/dockerhub-mirror/tonistiigi__binfmt --install all
+
+# https://docs.docker.com/build/buildkit/configure/#resource-limiting
+echo "
+[worker.oci]
+  max-parallelism = 3
+" | sudo tee /etc/buildkitd.toml
+
+docker buildx version # ensures buildx is enabled
+docker buildx create --config /etc/buildkitd.toml --use # prevents: error: multiple platforms feature is currently not supported for docker driver. Please switch to a different driver (eg. "docker buildx create --use")
+trap 'docker buildx stop' EXIT
+# shellcheck disable=SC2154,SC2046  # base_layer_cache_key is referenced but not assigned / Quote this to prevent word splitting
+docker buildx build "$project_root" \
    --file "image/Dockerfile" \
    --progress=plain \
    --pull \
    `# using the current date as value for BASE_LAYER_CACHE_KEY, i.e. the base layer cache (that holds system packages with security updates) will be invalidate once per day` \
-   --build-arg BASE_LAYER_CACHE_KEY=$base_layer_cache_key \
-   --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+   --build-arg BASE_LAYER_CACHE_KEY="$base_layer_cache_key" \
+   --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
    --build-arg GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}" \
-   --build-arg GIT_COMMIT_DATE="$(date -d @$(git log -1 --format='%at') --utc +'%Y-%m-%d %H:%M:%S UTC')" \
+   --build-arg GIT_COMMIT_DATE="$(date -d "@$(git log -1 --format='%at')" --utc +'%Y-%m-%d %H:%M:%S UTC')" \
    --build-arg GIT_COMMIT_HASH="$(git rev-parse --short HEAD)" \
    --build-arg GIT_REPO_URL="$(git config --get remote.origin.url)" \
-   -t $image_name \
+   $(if [[ ${ACT:-} == "true" || ${DOCKER_PUSH:-} != "true" ]]; then \
+      echo -n "--load --output type=docker"; \
+   else \
+      echo -n "--platform linux/amd64,linux/arm64,linux/riscv64"; \
+   fi) \
+   --tag "$image_name" \
+   $(if [[ ${DOCKER_PUSH:-} == "true" ]]; then echo -n "--push"; fi) \
    "$@"
+set +x
+
+if [[ ${DOCKER_PUSH:-} == "true" ]]; then
+   docker image pull "$image_name"
+fi
 
 
 #################################################
-# determine effective version and apply tags
+# determine effective version
 #################################################
 # LC_ALL=en_US.utf8 -> workaround for "grep: -P supports only unibyte and UTF-8 locales"
 # 2>/dev/null -> workaround for "write /dev/stdout: The pipe is being closed."
-gitea_version=$(docker run --rm $image_name /app/gitea/gitea --version | LC_ALL=en_US.utf8 grep -oP 'Gitea version \K\d+\.\d+\.\d+' || true)
-echo gitea_version=$gitea_version
-docker image tag $image_name $image_repo:${gitea_version%.*}.x  #1.12.x
-docker image tag $image_name $image_repo:${gitea_version%%.*}.x #1.x
+gitea_version=$(docker run --rm "$image_name" /app/gitea/gitea --version | LC_ALL=en_US.utf8 grep -oP 'Gitea version \K\d+\.\d+\.\d+' || true)
+echo "gitea_version=$gitea_version"
+
+
+#################################################
+# apply tags
+#################################################
+declare -a tags=()
+#tags+=("$image_name $image_repo:${gitea_version%.*}.x")  #1.12.x
+tags+=("$image_repo:${gitea_version%%.*}.x")  #1.x
+
+for tag in "${tags[@]}"; do
+   (set -x; docker image tag "$image_name" "$tag")
+   if [[ ${DOCKER_PUSH:-} == "true" ]]; then
+      (set -x; docker push "$tag")
+   fi
+done
+tags+=("$image_name") # :latest
 
 
 #################################################
 # perform security audit
 #################################################
-if [[ "${DOCKER_AUDIT_IMAGE:-1}" == 1 ]]; then
-   bash "$shared_lib/cmd/audit-image.sh" $image_name
+if [[ ${DOCKER_AUDIT_IMAGE:-1} == "1" ]]; then
+   bash "$shared_lib/cmd/audit-image.sh" "$image_name"
 fi
 
 
 #################################################
-# push image with tags to remote docker image registry
+# push image to ghcr.io
 #################################################
-if [[ "${DOCKER_PUSH:-0}" == "1" ]]; then
-   docker image tag $image_name $docker_registry/$image_name
-   #docker image tag $image_name $docker_registry/$image_repo:${gitea_version}      #1.12.4
-   #docker image tag $image_name $docker_registry/$image_repo:${gitea_version%.*}.x #1.12.x
-   docker image tag $image_name $docker_registry/$image_repo:${gitea_version%%.*}.x #1.x
-
-   docker push $docker_registry/$image_name
-   #docker push $docker_registry/$image_repo:${gitea_version}       #1.12.4
-   #docker push $docker_registry/$image_repo:${gitea_version%.*}.x  #1.12.x
-   docker push $docker_registry/$image_repo:${gitea_version%%.*}.x #1.x
+if [[ ${DOCKER_PUSH_GHCR:-} == "true" ]]; then
+   for tag in "${tags[@]}"; do
+      set -x
+      docker run --rm \
+         -u "$(id -u):$(id -g)" -e HOME -v "$HOME:$HOME" \
+         -v /etc/docker/certs.d:/etc/docker/certs.d:ro \
+         ghcr.io/regclient/regctl:latest \
+         image copy "$tag" "ghcr.io/$tag"
+      set +x
+   done
 fi
