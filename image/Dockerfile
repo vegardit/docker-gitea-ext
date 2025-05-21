@@ -47,4 +47,5 @@ LABEL \
   org.opencontainers.image.source=$GIT_REPO_URL \
   org.opencontainers.image.created=$BUILD_DATE \
   org.opencontainers.image.revision=$GIT_COMMIT_HASH \
-  org.opencontainers.image.vision=$GIT_COMMIT_HASH
+  org.opencontainers.image.vision=$GIT_COMMIT_HASH \
+  org.opencontainers.image.description="Official Gitea Docker image enhanced with built-in AsciiDoc rendering powered by AsciiDoctor"
