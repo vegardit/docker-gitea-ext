@@ -1,21 +1,24 @@
 #syntax=docker/dockerfile:1
+# see https://github.com/moby/buildkit/blob/master/frontend/dockerfile/docs/reference.md
+# see https://docs.docker.com/engine/reference/builder/#syntax
 #
 # SPDX-FileCopyrightText: © Vegard IT GmbH (https://vegardit.com)
 # SPDX-FileContributor: Sebastian Thomschke
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-ArtifactOfProjectHomePage: https://github.com/vegardit/docker-gitea-ext
-#
 
 # https://github.com/go-gitea/gitea/blob/main/Dockerfile
-FROM gitea/gitea:1
+ARG BASE_IMAGE=gitea/gitea:1
 
-LABEL maintainer="Vegard IT GmbH (vegardit.com)"
+#############################################################
+# build final image
+#############################################################
 
-# https://github.com/hadolint/hadolint/wiki/DL3002 Last USER should not be root
-# hadolint ignore=DL3002
-USER root
+# https://github.com/hadolint/hadolint/wiki/DL3006 Always tag the version of an image explicitly
+# hadolint ignore=DL3006
+FROM ${BASE_IMAGE} as final
 
-SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+SHELL ["/bin/ash", "-euo", "pipefail", "-c"]
 
 ARG BASE_LAYER_CACHE_KEY
 
@@ -28,23 +31,33 @@ RUN --mount=type=bind,source=.shared,target=/mnt/shared <<EOF
   echo "Installing asciidoctor..."
   echo "#################################################"
   apk --no-cache add asciidoctor
-  echo -e '\n\
-[markup.asciidoc]\n\
-ENABLED = true\n\
-RENDER_COMMAND = "asciidoctor -e -a leveloffset=-1 --out-file=- -"\n\
-' >>/etc/templates/app.ini
-
+  cat <<EOT >>/etc/templates/app.ini
+[markup.asciidoc]
+ENABLED = true
+RENDER_COMMAND = "asciidoctor -e -a leveloffset=-1 --out-file=- -"
+EOT
   /mnt/shared/cmd/alpine-cleanup.sh
 
 EOF
 
-ARG BUILD_DATE
-ARG GIT_COMMIT_HASH
-ARG GIT_REPO_URL
+ARG OCI_authors
+ARG OCI_title
+ARG OCI_description
+ARG OCI_source
+ARG OCI_revision
+ARG OCI_version
+ARG OCI_created
+
+ARG GIT_BRANCH
+ARG GIT_COMMIT_DATE
 
 # https://github.com/opencontainers/image-spec/blob/main/annotations.md
 LABEL \
-  org.opencontainers.image.source=$GIT_REPO_URL \
-  org.opencontainers.image.created=$BUILD_DATE \
-  org.opencontainers.image.revision=$GIT_COMMIT_HASH \
-  org.opencontainers.image.vision=$GIT_COMMIT_HASH
+  org.opencontainers.image.title="$OCI_title" \
+  org.opencontainers.image.description="$OCI_description" \
+  org.opencontainers.image.source="$OCI_source" \
+  org.opencontainers.image.revision="$OCI_revision" \
+  org.opencontainers.image.version="$OCI_version" \
+  org.opencontainers.image.created="$OCI_created"
+
+LABEL maintainer="$OCI_authors"
