@@ -154,7 +154,7 @@ echo
 log INFO "Determining effective Gitea version of [$image_name]..."
 # LC_ALL=en_US.utf8 -> workaround for "grep: -P supports only unibyte and UTF-8 locales"
 # 2>/dev/null -> workaround for "write /dev/stdout: The pipe is being closed."
-gitea_version=$(docker run --rm "$image_name" /app/gitea/gitea --version | LC_ALL=en_US.utf8 grep -oP 'Gitea version \K\d+\.\d+\.\d+' || true)
+gitea_version=$(docker run --rm "$image_name" /app/gitea/gitea --version | LC_ALL=en_US.utf8 grep -oP '[Gg]itea version \K\d+\.\d+\.\d+' || true)
 echo "gitea_version=$gitea_version"
 
 
