@@ -68,7 +68,7 @@ jobs:
     - name: "Show: GitHub context"
       env:
         GITHUB_CONTEXT: ${{ toJSON(github) }}
-      run: echo $GITHUB_CONTEXT
+      run: printf '%s' "$GITHUB_CONTEXT" | python -m json.tool
 
 
     - name: "Show: environment variables"
@@ -153,6 +153,29 @@ jobs:
 
     outputs:
       DOCKER_PUSH_GHCR: ${{ steps.docker_push_actions.outputs.DOCKER_PUSH_GHCR }}
+
+
+  ###########################################################
+  dependabot-pr-auto-merge:
+  ###########################################################
+    needs: [build]
+    # The PR author remains stable when a maintainer reruns a Dependabot workflow.
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.user.login == 'dependabot[bot]'
+      }}
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    uses: sebthom/gha-shared/.github/workflows/reusable.dependabot-auto-merge.yml@v1
+    with:
+      dependabot-package-ecosystems: '["github-actions"]'
+      dependabot-merge-method: squash
+      # This repository has no protected branch rules and GitHub auto-merge is disabled.
+      dependabot-use-auto-merge: false
 
 
   ###########################################################
