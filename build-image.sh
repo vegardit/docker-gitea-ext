@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-ArtifactOfProjectHomePage: https://github.com/vegardit/docker-gitea-ext
 
+# Build and optionally publish multi-arch Gitea images with AsciiDoc support.
+
 shared_lib="$(dirname "${BASH_SOURCE[0]}")/.shared"
 [[ -e $shared_lib ]] || curl -sSfL "https://raw.githubusercontent.com/vegardit/docker-shared/v1/download.sh?_=$(date +%s)" | bash -s v1 "$shared_lib" || exit 1
 # shellcheck disable=SC1091  # Not following: $shared_lib/lib/build-image-init.sh was not specified as input
@@ -15,7 +17,8 @@ source "$shared_lib/lib/build-image-init.sh"
 # declare image meta
 #################################################
 image_repo=${DOCKER_IMAGE_REPO:-vegardit/gitea-ext}
-base_image=${DOCKER_BASE_IMAGE:-gitea/gitea:1}
+# Follow stable releases across major versions; the :1 tag stays on Gitea 1.x.
+base_image=${DOCKER_BASE_IMAGE:-gitea/gitea:latest}
 
 platforms="linux/amd64,linux/arm64/v8,linux/riscv64"
 
@@ -163,7 +166,7 @@ echo "gitea_version=$gitea_version"
 # extend tags
 #################################################
 #tags+=("${gitea_version%.*}.x")  #1.12.x
-tags+=("${gitea_version%%.*}.x")  #1.x
+tags+=("${gitea_version%%.*}.x")  #28.x
 
 
 #################################################

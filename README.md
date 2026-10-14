@@ -13,6 +13,8 @@
 
 Multi-arch Docker image based on the official [Gitea](https://gitea.io/) [docker image](https://hub.docker.com/r/gitea/gitea) with support for rendering [AsciiDoc](https://asciidoc.org/) markup using [AsciiDoctor](https://asciidoctor.org/).
 
+Builds use `gitea/gitea:latest` by default so new stable Gitea major versions are picked up automatically.
+Published images are tagged `latest` and `<major>.x` (for example, `28.x`).
 
 ## <a name="license"></a>License
 

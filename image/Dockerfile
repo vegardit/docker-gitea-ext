@@ -7,8 +7,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-ArtifactOfProjectHomePage: https://github.com/vegardit/docker-gitea-ext
 
+# Extend the stable Gitea image with AsciiDoc rendering through AsciiDoctor.
+
 # https://github.com/go-gitea/gitea/blob/main/Dockerfile
-ARG BASE_IMAGE=gitea/gitea:1
+ARG BASE_IMAGE=gitea/gitea:latest
 
 #############################################################
 # build final image
