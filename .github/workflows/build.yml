@@ -40,6 +40,7 @@ defaults:
 env:
   DOCKER_REPO_NAME: gitea-ext
   DOCKER_IMAGE_TAG: latest
+  DOCKER_AUDIT_IMAGE: 0
   TRIVY_CACHE_DIR: ~/.trivy/cache
 
 
